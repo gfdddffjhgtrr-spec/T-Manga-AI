@@ -1,0 +1,18 @@
+{
+  "format_version": 2,
+  "header": {
+    "description": "Resource Pack for Street Fighting Thai Vocational School Add-on",
+    "name": "Street Fighting RP",
+    "uuid": "8f0293d0-3a1b-419d-9d41-e941198f2001",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 20, 80]
+  },
+  "modules": [
+    {
+      "description": "Street Fighting Textures and Models",
+      "type": "resources",
+      "uuid": "8f0293d0-3a1b-419d-9d41-e941198f2002",
+      "version": [1, 0, 0]
+    }
+  ]
+}

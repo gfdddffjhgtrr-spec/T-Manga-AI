@@ -1,0 +1,23 @@
+{
+  "format_version": "1.14.0",
+  "sound_definitions": {
+    "street.talk": {
+      "category": "neutral",
+      "sounds": [
+        "sounds/street/talk"
+      ]
+    },
+    "street.hit": {
+      "category": "neutral",
+      "sounds": [
+        "sounds/street/hit"
+      ]
+    },
+    "street.down": {
+      "category": "neutral",
+      "sounds": [
+        "sounds/street/down"
+      ]
+    }
+  }
+}

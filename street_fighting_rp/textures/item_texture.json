@@ -1,0 +1,27 @@
+{
+  "resource_pack_name": "street_fighting_rp",
+  "texture_name": "atlas.items",
+  "texture_data": {
+    "wrench": {
+      "textures": "textures/items/wrench"
+    },
+    "iron_pipe": {
+      "textures": "textures/items/iron_pipe"
+    },
+    "helmet": {
+      "textures": "textures/items/helmet"
+    },
+    "faction_a": {
+      "textures": "textures/items/faction_a"
+    },
+    "faction_b": {
+      "textures": "textures/items/faction_b"
+    },
+    "shop_jacket_a": {
+      "textures": "textures/items/shop_jacket_a"
+    },
+    "shop_jacket_b": {
+      "textures": "textures/items/shop_jacket_b"
+    }
+  }
+}

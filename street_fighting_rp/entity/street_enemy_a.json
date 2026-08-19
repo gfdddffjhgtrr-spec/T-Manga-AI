@@ -1,0 +1,25 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "street:enemy_a",
+      "materials": {
+        "default": "entity_nocull"
+      },
+      "textures": {
+        "default": "textures/entity/street_enemy_a"
+      },
+      "geometry": {
+        "default": "geometry.shop_jacket_a"
+      },
+      "render_controllers": [
+        "controller.render.default"
+      ],
+      "sound_effects": {
+        "talk": "street.talk",
+        "hurt": "street.hit",
+        "death": "street.down"
+      }
+    }
+  }
+}
