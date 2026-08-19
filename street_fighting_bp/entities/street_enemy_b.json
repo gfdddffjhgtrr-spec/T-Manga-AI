@@ -5,7 +5,13 @@
       "identifier": "street:enemy_b",
       "is_spawnable": true,
       "is_summonable": true,
-      "is_experimental": false
+      "is_experimental": false,
+      "spawn_egg": {
+        "texture": "spawn_egg",
+        "texture_index": 0,
+        "base_color": "#961e0a",
+        "overlay_color": "#d2aa14"
+      }
     },
     "component_groups": {
       "team_b_defaults": {
