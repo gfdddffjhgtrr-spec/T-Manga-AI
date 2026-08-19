@@ -1,0 +1,30 @@
+{
+  "format_version": 2,
+  "header": {
+    "description": "Behavior Pack for Street Fighting Thai Vocational School Add-on",
+    "name": "Street Fighting BP",
+    "uuid": "8f0293d0-3a1b-419d-9d41-e941198f1001",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 20, 80]
+  },
+  "modules": [
+    {
+      "description": "Street Fighting Script Engine",
+      "type": "script",
+      "language": "javascript",
+      "uuid": "8f0293d0-3a1b-419d-9d41-e941198f1002",
+      "version": [1, 0, 0],
+      "entry": "scripts/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "1.11.0"
+    },
+    {
+      "uuid": "8f0293d0-3a1b-419d-9d41-e941198f2001",
+      "version": [1, 0, 0]
+    }
+  ]
+}

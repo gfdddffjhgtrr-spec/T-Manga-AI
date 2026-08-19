@@ -1,0 +1,23 @@
+{
+  "format_version": "1.20.80",
+  "minecraft:item": {
+    "description": {
+      "identifier": "street:wrench",
+      "menu_category": {
+        "category": "equipment"
+      }
+    },
+    "components": {
+      "minecraft:icon": {
+        "texture": "wrench"
+      },
+      "minecraft:display_name": {
+        "value": "ประแจปอนด์ (Pipe Wrench)"
+      },
+      "minecraft:hand_equipped": true,
+      "minecraft:max_stack_size": 1,
+      "minecraft:damage": 6,
+      "minecraft:can_destroy_in_creative": false
+    }
+  }
+}
