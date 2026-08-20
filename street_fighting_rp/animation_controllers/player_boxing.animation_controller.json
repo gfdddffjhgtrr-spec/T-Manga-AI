@@ -1,0 +1,21 @@
+{
+  "format_version": "1.10.0",
+  "animation_controllers": {
+    "controller.animation.player.boxing": {
+      "initial_state": "default",
+      "states": {
+        "default": {
+          "transitions": [
+            { "sneaking_guard": "query.is_sneaking" }
+          ]
+        },
+        "sneaking_guard": {
+          "animations": [ "boxing_stance" ],
+          "transitions": [
+            { "default": "!query.is_sneaking" }
+          ]
+        }
+      }
+    }
+  }
+}
