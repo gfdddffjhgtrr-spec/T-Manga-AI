@@ -1,0 +1,33 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "minecraft:player",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/steve"
+      },
+      "geometry": {
+        "default": "geometry.humanoid"
+      },
+      "scripts": {
+        "animate": [
+          "boxing_controller"
+        ]
+      },
+      "animations": {
+        "boxing_controller": "controller.animation.player.boxing",
+        "boxing_stance": "animation.player.boxing_stance",
+        "punch_left": "animation.player.punch_left",
+        "punch_right": "animation.player.punch_right",
+        "heavy_punch": "animation.player.heavy_punch",
+        "dash_slowmo": "animation.player.dash_slowmo",
+        "counter_slowmo": "animation.player.counter_slowmo",
+        "stunned": "animation.player.stunned"
+      },
+      "render_controllers": [ "controller.render.default" ]
+    }
+  }
+}
