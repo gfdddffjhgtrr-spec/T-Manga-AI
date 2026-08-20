@@ -1,0 +1,13 @@
+{
+  "format_version": "1.14.0",
+  "sound_definitions": {
+    "street.hit": {
+      "category": "player",
+      "sounds": [ "sounds/game/player/attack/nodamage1", "sounds/game/player/attack/nodamage2" ]
+    },
+    "street.down": {
+      "category": "player",
+      "sounds": [ "sounds/random/hurt" ]
+    }
+  }
+}

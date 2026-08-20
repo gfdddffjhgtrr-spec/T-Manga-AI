@@ -1,0 +1,18 @@
+{
+  "format_version": 2,
+  "header": {
+    "description": "Resource Pack for Boxing Add-on (Realistic Boxing Mod)",
+    "name": "Boxing RP",
+    "uuid": "7c1284d1-2a1b-429d-8d31-e841198f4001",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 20, 80]
+  },
+  "modules": [
+    {
+      "description": "Boxing Textures and Animations",
+      "type": "resources",
+      "uuid": "7c1284d1-2a1b-429d-8d31-e841198f4002",
+      "version": [1, 0, 0]
+    }
+  ]
+}

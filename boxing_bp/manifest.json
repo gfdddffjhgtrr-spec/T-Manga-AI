@@ -1,0 +1,30 @@
+{
+  "format_version": 2,
+  "header": {
+    "description": "Behavior Pack for Boxing Add-on (Realistic Boxing Mod)",
+    "name": "Boxing BP",
+    "uuid": "7c1284d1-2a1b-429d-8d31-e841198f3001",
+    "version": [1, 0, 0],
+    "min_engine_version": [1, 20, 80]
+  },
+  "modules": [
+    {
+      "description": "Boxing Add-on Script Engine",
+      "type": "script",
+      "language": "javascript",
+      "uuid": "7c1284d1-2a1b-429d-8d31-e841198f3002",
+      "version": [1, 0, 0],
+      "entry": "scripts/main.js"
+    }
+  ],
+  "dependencies": [
+    {
+      "module_name": "@minecraft/server",
+      "version": "1.11.0"
+    },
+    {
+      "uuid": "7c1284d1-2a1b-429d-8d31-e841198f4001",
+      "version": [1, 0, 0]
+    }
+  ]
+}
