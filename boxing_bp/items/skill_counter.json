@@ -2,22 +2,22 @@
   "format_version": "1.20.80",
   "minecraft:item": {
     "description": {
-      "identifier": "street:skill_dash",
+      "identifier": "boxing:skill_counter",
       "menu_category": {
         "category": "items"
       }
     },
     "components": {
       "minecraft:icon": {
-        "texture": "street_skill_dash"
+        "texture": "boxing_skill_counter"
       },
       "minecraft:display_name": {
-        "value": "§b⚡ สกิลพุ่งหลบ (Dash Slow-Mo)"
+        "value": "§c💥 สกิลสวนหมัด (Counter Slow-Mo)"
       },
       "minecraft:max_stack_size": 1,
       "minecraft:cooldown": {
-        "category": "dash_skill",
-        "duration": 5
+        "category": "counter_skill",
+        "duration": 8
       }
     }
   }

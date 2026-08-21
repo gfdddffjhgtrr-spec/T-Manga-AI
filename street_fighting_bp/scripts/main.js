@@ -6,16 +6,10 @@ import { world, system, EntityComponentTypes } from "@minecraft/server";
 const STAMINA_MAX = 100;
 const STAMINA_REGEN = 4;
 const STAMINA_ATTACK_COST = 10;
-const STAMINA_HEAVY_COST = 25;
 const STAMINA_GUARD_COST = 15;
 
 const playerStamina = new Map(); // playerId -> currentStamina
 const playerGuardTime = new Map(); // playerId -> timestamp
-const playerGuardHits = new Map(); // playerId -> consecutive hit count
-const playerStunState = new Map(); // playerId -> stun end timestamp
-const playerPunchArm = new Map(); // playerId -> "left" | "right"
-const cameraEnabled = new Map(); // playerId -> boolean
-const lockedLocations = new Map(); // entityId -> { x, y, z, dimension }
 const carriedPlayers = new Map(); // carrierId -> downedPlayerId
 
 // Utility function to get entity health component
@@ -50,7 +44,7 @@ function getFaction(entity) {
   return null;
 }
 
-// Equips shop jacket to chest armor slot
+// Equips shop jacket to chest armor slot using MC Bedrock 1.20+ command syntax
 function equipShopJacket(player, faction) {
   try {
     const itemType = faction === "team_a" ? "street:shop_jacket_a" : "street:shop_jacket_b";
@@ -82,117 +76,8 @@ function getMainhandItemType(entity) {
   }
 }
 
-// Check if player is currently stunned
-function isStunned(player) {
-  const stunEnd = playerStunState.get(player.id);
-  if (!stunEnd) return false;
-  if (Date.now() > stunEnd) {
-    playerStunState.delete(player.id);
-    return false;
-  }
-  return true;
-}
-
-// Lock entity position for cinematic/stun duration
-function lockEntityPosition(entity, durationMs) {
-  if (!entity) return;
-  const loc = entity.location;
-  lockedLocations.set(entity.id, {
-    x: loc.x,
-    y: loc.y,
-    z: loc.z,
-    dimension: entity.dimension,
-    until: Date.now() + durationMs
-  });
-}
-
-// Helper to find nearest opponent within radius
-function getNearestOpponent(player, radius = 5) {
-  const playerLoc = player.location;
-  const playerFaction = getFaction(player);
-  let closest = null;
-  let minDistanceSq = radius * radius;
-
-  for (const other of player.dimension.getEntities()) {
-    if (other.id === player.id) continue;
-    const otherFaction = getFaction(other);
-    // Ignore same faction
-    if (playerFaction && otherFaction && playerFaction === otherFaction) continue;
-
-    const loc = other.location;
-    const dx = loc.x - playerLoc.x;
-    const dy = loc.y - playerLoc.y;
-    const dz = loc.z - playerLoc.z;
-    const distSq = dx * dx + dy * dy + dz * dz;
-
-    if (distSq <= minDistanceSq) {
-      minDistanceSq = distSq;
-      closest = other;
-    }
-  }
-  return closest;
-}
-
 // ==========================================
-// 1. OVER-THE-SHOULDER CAMERA CONTROL SYSTEM
-// ==========================================
-system.runInterval(() => {
-  for (const player of world.getAllPlayers()) {
-    // Enable camera mode by default for boxing feel if not disabled
-    const isCamActive = cameraEnabled.get(player.id) ?? true;
-    if (!isCamActive) continue;
-
-    try {
-      const loc = player.location;
-      const rot = player.getRotation(); // { x: pitch, y: yaw }
-      const yawRad = (rot.y * Math.PI) / 180;
-
-      // Calculate Over-The-Shoulder / Side View Offset (Roblox Boxing Style)
-      // Behind: -2.2, Right offset: +0.7, Height offset: +1.7
-      const forwardX = -Math.sin(yawRad);
-      const forwardZ = Math.cos(yawRad);
-      const rightX = Math.cos(yawRad);
-      const rightZ = Math.sin(yawRad);
-
-      const camX = loc.x - forwardX * 2.2 + rightX * 0.7;
-      const camY = loc.y + 1.8;
-      const camZ = loc.z - forwardZ * 2.2 + rightZ * 0.7;
-
-      const targetX = loc.x + forwardX * 3.0;
-      const targetY = loc.y + 1.5;
-      const targetZ = loc.z + forwardZ * 3.0;
-
-      player.camera.setCamera("minecraft:free", {
-        location: { x: camX, y: camY, z: camZ },
-        facingLocation: { x: targetX, y: targetY, z: targetZ },
-        easeOptions: {
-          easeTime: 0.1,
-          easeType: "Linear"
-        }
-      });
-    } catch (e) {}
-  }
-}, 1);
-
-// Maintain Locked Entity Positions (for Slow-Mo Cutscenes & Stun)
-system.runInterval(() => {
-  const now = Date.now();
-  for (const [entityId, lockData] of lockedLocations.entries()) {
-    if (now > lockData.until) {
-      lockedLocations.delete(entityId);
-      continue;
-    }
-    // Teleport back to lock point to freeze position
-    for (const player of world.getAllPlayers()) {
-      if (player.id === entityId) {
-        player.teleport({ x: lockData.x, y: lockData.y, z: lockData.z }, { dimension: lockData.dimension });
-      }
-    }
-  }
-}, 1);
-
-// ==========================================
-// 2. FACTION SELECTION & ITEM USAGE / SKILLS
+// FACTION SELECTION & ITEM USAGE
 // ==========================================
 world.afterEvents.itemUse.subscribe((event) => {
   const player = event.source;
@@ -207,129 +92,38 @@ world.afterEvents.itemUse.subscribe((event) => {
     player.addTag("team_a");
     equipShopJacket(player, "team_a");
     player.runCommandAsync(`playsound street.talk @s ~ ~ ~ 1.0 1.0`);
-    player.sendMessage("§b[Boxing Add-on] §aคุณได้เข้าร่วม §1แก๊ง A (สถาบันเสื้อกรมท่า) §aเรียบร้อยแล้ว!");
+    player.sendMessage("§b[Street Fighting] §aคุณได้เข้าร่วม §1แก๊ง A (สถาบันเสื้อกรมท่า) §aเรียบร้อยแล้ว!");
   } else if (item.typeId === "street:faction_b" || item.typeId === "street:shop_jacket_b") {
     player.removeTag("team_a");
     player.addTag("team_b");
     equipShopJacket(player, "team_b");
     player.runCommandAsync(`playsound street.talk @s ~ ~ ~ 1.0 1.0`);
-    player.sendMessage("§b[Boxing Add-on] §aคุณได้เข้าร่วม §cแก๊ง B (สถาบันเสื้อเลือดหมู) §aเรียบร้อยแล้ว!");
-  }
-
-  // Camera Mode Toggle Item (Boxing Gloves toggles camera or stance)
-  if (item.typeId === "street:boxing_gloves") {
-    const currentCam = cameraEnabled.get(player.id) ?? true;
-    cameraEnabled.set(player.id, !currentCam);
-    if (!currentCam) {
-      player.sendMessage("§a[Boxing Add-on] 🎥 เปิดใช้งานมุมกล้อง Over-The-Shoulder");
-    } else {
-      player.camera.clear();
-      player.sendMessage("§c[Boxing Add-on] 🎥 ปิดใช้งานมุมกล้อง (กลับเป็นมุมมองปกติ)");
-    }
-  }
-
-  // 3. SYNCED CINEMATIC SLOW-MO SKILLS (Dash & Counter)
-  if (item.typeId === "street:skill_dash") {
-    triggerDashSlowMo(player);
-  } else if (item.typeId === "street:skill_counter") {
-    triggerCounterSlowMo(player);
+    player.sendMessage("§b[Street Fighting] §aคุณได้เข้าร่วม §cแก๊ง B (สถาบันเสื้อเลือดหมู) §aเรียบร้อยแล้ว!");
   }
 
   // Guard tracking on item use
   playerGuardTime.set(player.id, now);
 });
 
-// ==========================================
-// 3. CINEMATIC SLOW-MO MECHANICS (DASH & COUNTER)
-// ==========================================
-function triggerDashSlowMo(player) {
-  if (isStunned(player) || player.hasTag("downed")) return;
-
-  const opponent = getNearestOpponent(player, 6);
-  const durationMs = 3000; // 3 seconds slow-mo cutscene
-
-  // Lock positions for player and opponent
-  lockEntityPosition(player, durationMs);
-  if (opponent) {
-    lockEntityPosition(opponent, durationMs);
-  }
-
-  // Play Synced Slow-Mo Dash Animation on player (using stretched animation keyframes)
-  player.runCommandAsync(`playanimation @s animation.player.dash_slowmo default 1`);
-  player.runCommandAsync(`playsound street.hit @a ~ ~ ~ 0.5 0.5`);
-  player.onScreenDisplay.setActionBar("§b⚡ CINEMATIC SLOW-MO: DASH!");
-
-  if (opponent && opponent.typeId === "minecraft:player") {
-    opponent.runCommandAsync(`playanimation @s animation.player.dash_slowmo default 1`);
-    opponent.runCommandAsync(`playsound street.hit @a ~ ~ ~ 0.5 0.5`);
-    opponent.onScreenDisplay.setActionBar("§e⚡ OPPONENT DASH SLOW-MO!");
-  }
-
-  world.sendMessage(`§b[Cinematic] §e${player.nameTag || "นักมวย"} ใช้พุ่งหลบสโลว์โมชัน!`);
-}
-
-function triggerCounterSlowMo(player) {
-  if (isStunned(player) || player.hasTag("downed")) return;
-
-  const opponent = getNearestOpponent(player, 6);
-  const durationMs = 3500; // 3.5 seconds slow-mo cutscene
-
-  // Lock positions for player and opponent
-  lockEntityPosition(player, durationMs);
-  if (opponent) {
-    lockEntityPosition(opponent, durationMs);
-  }
-
-  // Play Synced Slow-Mo Counter Animation
-  player.runCommandAsync(`playanimation @s animation.player.counter_slowmo default 1`);
-  player.runCommandAsync(`playsound street.hit @a ~ ~ ~ 0.5 0.4`);
-  player.onScreenDisplay.setActionBar("§c💥 CINEMATIC SLOW-MO: COUNTER PUNCH!");
-
-  if (opponent) {
-    if (opponent.typeId === "minecraft:player") {
-      opponent.runCommandAsync(`playanimation @s animation.player.punch_right default 1`);
-      opponent.onScreenDisplay.setActionBar("§c⚠️ คุณกำลังโดนหมัดสวน Counter Slow-Mo!");
-    }
-  }
-
-  // Apply counter impact damage at 2.0s mark
-  system.runTimeout(() => {
-    if (opponent) {
-      const oppHp = getHealth(opponent);
-      setHealth(opponent, Math.max(1, oppHp - 12)); // Heavy counter strike damage
-      opponent.runCommandAsync(`playsound street.hit @a ~ ~ ~ 1.0 0.6`);
-    }
-  }, 40); // 40 ticks = 2.0 seconds
-
-  world.sendMessage(`§c[Cinematic] §e${player.nameTag || "นักมวย"} สวนหมัด Counter Slow-Mo สมจริง!`);
-}
-
 // Track sneaking / guarding state in interval
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
-    if (isStunned(player)) {
-      // Play stunned animation loop
-      player.runCommandAsync(`playanimation @s animation.player.stunned default 1`);
-      player.onScreenDisplay.setActionBar("§c💫 GUARD BREAK! ติดสถานะ Stun มึนชั่วคราว");
-      continue;
-    }
-
     if (player.isSneaking) {
       if (!playerGuardTime.has(player.id)) {
         playerGuardTime.set(player.id, Date.now());
       }
     } else {
+      // Keep guard time for 1 second after releasing sneak
       const last = playerGuardTime.get(player.id);
       if (last && Date.now() - last > 1000) {
         playerGuardTime.delete(player.id);
-        playerGuardHits.set(player.id, 0); // Reset guard hits when guard released
       }
     }
   }
 }, 5);
 
 // ==========================================
-// 4. COMBAT MECHANICS (M1 LIGHT PUNCH / M2 HEAVY PUNCH / GUARD BREAK)
+// FRIENDLY FIRE & COMBAT MECHANICS (PARRY/STAMINA/KNOCKBACK/WEAPONS)
 // ==========================================
 world.afterEvents.entityHurt.subscribe((event) => {
   const victim = event.hurtEntity;
@@ -344,8 +138,9 @@ world.afterEvents.entityHurt.subscribe((event) => {
   const hpComp = getHealthComponent(victim);
   const maxHp = hpComp ? hpComp.effectiveMax : 20;
 
-  // 1. FRIENDLY FIRE PROTECTION
+  // 1. NO FRIENDLY FIRE
   if (victimFaction && attackerFaction && victimFaction === attackerFaction && victim !== attacker) {
+    // Refund damage taken
     setHealth(victim, Math.min(maxHp, currentHp + damage));
     if (attacker && attacker.typeId === "minecraft:player") {
       attacker.onScreenDisplay.setActionBar("§c❌ ห้ามโจมตีพวกเดียวกัน!");
@@ -359,14 +154,14 @@ world.afterEvents.entityHurt.subscribe((event) => {
     return;
   }
 
-  // Helmet Protection
+  // Helmet Protection against critical/high damage
   if (victim.typeId === "minecraft:player" && isWearingHelmet(victim) && damage >= 5) {
-    const reducedDamage = damage * 0.3;
+    const reducedDamage = damage * 0.3; // 30% damage reduction
     setHealth(victim, Math.min(maxHp, currentHp + reducedDamage));
     damage *= 0.7;
   }
 
-  // Check health for Downed Mechanics
+  // Check health for Downed Mechanics (Trigger at half HP or less)
   if (currentHp <= 10 && !victim.hasTag("downed")) {
     setHealth(victim, 10);
     victim.addTag("downed");
@@ -380,97 +175,80 @@ world.afterEvents.entityHurt.subscribe((event) => {
     if (victim.typeId === "minecraft:player") {
       victim.sendMessage("§c🆘 คุณล้มสลบ! รอกำลังเสริมแก๊งเดียวกันมาชุบชีวิตหรืออุ้มหนี");
     }
-    world.sendMessage(`§e[Boxing Alert] §c${victim.nameTag || "สมาชิก"} ล้มสลบลงแล้ว!`);
+    world.sendMessage(`§e[Street Alert] §c${victim.nameTag || "สมาชิก"} ล้มสลบลงแล้ว!`);
     return;
   }
 
-  // ATTACKER PUNCH ANIMATION (M1 Light Punch / M2 Heavy Punch)
-  if (attacker && attacker.typeId === "minecraft:player" && !isStunned(attacker)) {
-    const isAttackerSneaking = attacker.isSneaking;
-
-    if (isAttackerSneaking) {
-      // M2 HEAVY PUNCH (Sneak + Attack) -> Windup heavy punch that PIERCES GUARD
-      attacker.runCommandAsync(`playanimation @s animation.player.heavy_punch default 1`);
-      attacker.runCommandAsync(`playsound street.hit @a ~ ~ ~ 1.2 0.7`);
-      attacker.onScreenDisplay.setActionBar("§c💥 M2 HEAVY PUNCH (หมัดหนักทะลุการ์ด!)");
-
-      // Deduct Stamina for Heavy Punch
-      let stamina = playerStamina.get(attacker.id) ?? STAMINA_MAX;
-      stamina = Math.max(0, stamina - STAMINA_HEAVY_COST);
-      playerStamina.set(attacker.id, stamina);
-
-      // HEAVY PUNCH PIERCES GUARD (ทะลุการตั้งการ์ด) & TRIGGERS GUARD BREAK INSTANTLY
-      if (victim.typeId === "minecraft:player") {
-        const isVictimGuarding = victim.isSneaking || playerGuardTime.has(victim.id);
-        if (isVictimGuarding) {
-          triggerGuardBreak(victim);
-          victim.sendMessage("§c💥 คุณถูก M2 Heavy Punch ชกทะลุการ์ดจนการ์ดแตก!");
-        }
-      }
-    } else {
-      // M1 LIGHT PUNCH (Alternating Left & Right Punch)
-      const lastArm = playerPunchArm.get(attacker.id) || "right";
-      const nextArm = lastArm === "left" ? "right" : "left";
-      playerPunchArm.set(attacker.id, nextArm);
-
-      const anim = nextArm === "left" ? "animation.player.punch_left" : "animation.player.punch_right";
-      attacker.runCommandAsync(`playanimation @s ${anim} default 1`);
-      attacker.runCommandAsync(`playsound street.hit @a ~ ~ ~ 0.9 1.1`);
-
-      // Deduct Stamina for M1
-      let stamina = playerStamina.get(attacker.id) ?? STAMINA_MAX;
-      stamina = Math.max(0, stamina - STAMINA_ATTACK_COST);
-      playerStamina.set(attacker.id, stamina);
-    }
-  }
-
-  // 3. PARRY, GUARD & GUARD BREAK SYSTEM
-  if (victim.typeId === "minecraft:player" && !isStunned(victim)) {
+  // 3. PARRY & GUARD SYSTEM
+  if (victim.typeId === "minecraft:player") {
     const isGuarding = victim.isSneaking || playerGuardTime.has(victim.id);
-    const isAttackerSneaking = attacker && attacker.isSneaking;
-
-    // Normal Guard check (if not bypassed by Heavy Punch)
-    if (isGuarding && !isAttackerSneaking) {
+    if (isGuarding) {
       const guardStart = playerGuardTime.get(victim.id) || Date.now();
       const timeDiff = Date.now() - guardStart;
-
-      // Increment Guard Hits
-      let hits = (playerGuardHits.get(victim.id) || 0) + 1;
-      playerGuardHits.set(victim.id, hits);
 
       // Deduct Guard Stamina
       let stamina = playerStamina.get(victim.id) ?? STAMINA_MAX;
       stamina = Math.max(0, stamina - STAMINA_GUARD_COST);
       playerStamina.set(victim.id, stamina);
 
-      // Check Guard Break (3 consecutive hits taken while guarding)
-      if (hits >= 3 || stamina <= 0) {
-        triggerGuardBreak(victim);
-        return;
-      }
-
       if (timeDiff <= 500) {
-        // PERFECT PARRY (within 0.5s)
+        // PERFECT PARRY (within 0.5s) -> Refund 100% damage
         setHealth(victim, Math.min(maxHp, currentHp + damage));
-        victim.runCommandAsync(`playsound street.hit @a ~ ~ ~ 1.0 1.3`);
+        victim.runCommandAsync(`playsound street.hit @a ~ ~ ~ 1.0 1.2`);
         victim.onScreenDisplay.setActionBar("§e⚡ PERFECT PARRY! (สะท้อนการโจมตี)");
 
         if (attacker) {
+          attacker.runCommandAsync(`effect @s slowness 3 2 true`);
+          attacker.runCommandAsync(`effect @s weakness 3 2 true`);
           attacker.runCommandAsync(`playsound street.hit @a ~ ~ ~ 1.0 0.8`);
         }
         return;
       } else {
-        // NORMAL GUARD (80% Damage Reduction)
+        // NORMAL GUARD (80% Damage Reduction) -> Refund 80% damage
         const refundedDamage = damage * 0.8;
         setHealth(victim, Math.min(maxHp, currentHp + refundedDamage));
         victim.runCommandAsync(`playsound street.hit @a ~ ~ ~ 0.8 1.0`);
-        victim.onScreenDisplay.setActionBar(`§b🛡️ ตั้งการ์ดบล็อก (เกราะรับการปะทะ ${hits}/3)`);
+        victim.onScreenDisplay.setActionBar("§b🛡️ บล็อกสำเร็จ (ลดความเสียหาย 80%)");
         return;
       }
     }
   }
 
-  // 5. REALISM KNOCKBACK ADJUSTMENT
+  // 4. STAMINA SYSTEM & CUSTOM WEAPON EFFECTS FOR ATTACKER
+  if (attacker) {
+    if (attacker.typeId === "minecraft:player") {
+      let stamina = playerStamina.get(attacker.id) ?? STAMINA_MAX;
+      stamina = Math.max(0, stamina - STAMINA_ATTACK_COST);
+      playerStamina.set(attacker.id, stamina);
+
+      if (stamina <= 0) {
+        attacker.runCommandAsync(`effect @s slowness 3 1 true`);
+        attacker.onScreenDisplay.setActionBar("§c⚡ เหนื่อยล้า! สตามินาหมด (เคลื่อนที่ช้าลง)");
+      }
+    }
+
+    // Custom Weapon Effects
+    const weapon = getMainhandItemType(attacker);
+    if (weapon === "street:wrench") {
+      // Pipe Wrench: Stun Chance
+      if (Math.random() < 0.35) {
+        victim.runCommandAsync(`effect @s slowness 2 2 true`);
+        victim.runCommandAsync(`effect @s weakness 2 2 true`);
+      }
+    } else if (weapon === "street:iron_pipe") {
+      // Iron Pipe: Extra Knockback
+      try {
+        const viewDir = attacker.getViewDirection();
+        victim.applyImpulse({
+          x: viewDir.x * 0.6,
+          y: 0.2,
+          z: viewDir.z * 0.6
+        });
+      } catch (e) {}
+    }
+  }
+
+  // 5. REALISM KNOCKBACK ADJUSTMENT (Stagger push back for standard attacks)
   if (attacker && !victim.hasTag("downed")) {
     const weapon = getMainhandItemType(attacker);
     if (weapon !== "street:iron_pipe") {
@@ -485,23 +263,9 @@ world.afterEvents.entityHurt.subscribe((event) => {
     }
   }
 
+  // Play Hit Voice Sound
   victim.runCommandAsync(`playsound street.hit @a ~ ~ ~ 0.8 1.0`);
 });
-
-// Trigger Guard Break Stun
-function triggerGuardBreak(player) {
-  const stunDurationMs = 3000; // 3 seconds stun
-  playerStunState.set(player.id, Date.now() + stunDurationMs);
-  playerGuardHits.set(player.id, 0);
-
-  // Lock position during stun
-  lockEntityPosition(player, stunDurationMs);
-
-  player.runCommandAsync(`playanimation @s animation.player.stunned default 1`);
-  player.runCommandAsync(`playsound street.down @a ~ ~ ~ 1.0 0.7`);
-  player.onScreenDisplay.setActionBar("§c💫 GUARD BREAK! (ติดสถานะ Stun มึนชั่วคราว)");
-  player.sendMessage("§c💫 [Guard Break] การ์ดของคุณแตก! ติดสถานะ Stun ยืนมึน 3 วินาที");
-}
 
 // ==========================================
 // STAMINA REGENERATION & ACTIONBAR DISPLAY TICK
@@ -510,14 +274,14 @@ system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
     let stamina = playerStamina.get(player.id) ?? STAMINA_MAX;
 
-    // Regenerate stamina if not sneaking or stunned
-    if (stamina < STAMINA_MAX && !player.isSneaking && !isStunned(player)) {
+    // Regenerate stamina
+    if (stamina < STAMINA_MAX && !player.isSneaking) {
       stamina = Math.min(STAMINA_MAX, stamina + STAMINA_REGEN);
       playerStamina.set(player.id, stamina);
     }
 
-    // Display Stamina Bar on ActionBar if not downed or stunned
-    if (!player.hasTag("downed") && !isStunned(player)) {
+    // Display Stamina Bar on ActionBar if not downed
+    if (!player.hasTag("downed")) {
       const bars = Math.floor((stamina / STAMINA_MAX) * 10);
       const progressBar = "█".repeat(bars) + "▒".repeat(10 - bars);
       const color = stamina > 30 ? "§a" : "§c";
@@ -538,25 +302,31 @@ world.afterEvents.playerInteractWithEntity.subscribe((event) => {
   const playerFaction = getFaction(player);
   const targetFaction = getFaction(target);
 
+  // Check if target is downed
   if (target.hasTag("downed")) {
+    // Only same faction can revive or carry
     if (playerFaction && targetFaction && playerFaction === targetFaction) {
       if (player.isSneaking) {
+        // CARRY MECHANIC (Sneak + Interact)
         if (carriedPlayers.get(player.id) === target.id) {
+          // Drop carried player
           carriedPlayers.delete(player.id);
-          player.sendMessage("§e[Boxing Add-on] คุณได้วางเพื่อนลงแล้ว");
+          player.sendMessage("§e[Street Fighting] คุณได้วางเพื่อนลงแล้ว");
         } else {
+          // Carry player
           carriedPlayers.set(player.id, target.id);
-          player.sendMessage(`§a[Boxing Add-on] คุณกำลังอุ้ม ${target.nameTag || "เพื่อน"} หนี!`);
+          player.sendMessage(`§a[Street Fighting] คุณกำลังอุ้ม ${target.nameTag || "เพื่อน"} หนี!`);
         }
       } else {
+        // REVIVE MECHANIC (Normal Interact)
         target.removeTag("downed");
         target.runCommandAsync(`effect @s clear`);
-        setHealth(target, 12);
+        setHealth(target, 12); // Restore to 60% HP
 
         player.runCommandAsync(`playsound street.talk @a ~ ~ ~ 1.0 1.0`);
-        player.sendMessage(`§a[Boxing Add-on] คุณได้ชุบชีวิต ${target.nameTag || "เพื่อนในแก๊ง"} แล้ว!`);
+        player.sendMessage(`§a[Street Fighting] คุณได้ชุบชีวิต ${target.nameTag || "เพื่อนในแก๊ง"} แล้ว!`);
         if (target.typeId === "minecraft:player") {
-          target.sendMessage(`§a[Boxing Add-on] ${player.nameTag || "เพื่อนร่วมแก๊ง"} ได้ชุบชีวิตคุณแล้ว!`);
+          target.sendMessage(`§a[Street Fighting] ${player.nameTag || "เพื่อนร่วมแก๊ง"} ได้ชุบชีวิตคุณแล้ว!`);
         }
       }
     } else {
@@ -565,7 +335,7 @@ world.afterEvents.playerInteractWithEntity.subscribe((event) => {
   }
 });
 
-// Update Position for Carried Players
+// Update Position for Carried Players in tick
 system.runInterval(() => {
   for (const [carrierId, downedId] of carriedPlayers.entries()) {
     let carrier = null;
@@ -579,6 +349,7 @@ system.runInterval(() => {
     if (carrier && downed && downed.hasTag("downed")) {
       const loc = carrier.location;
       const view = carrier.getViewDirection();
+      // Position behind the carrier
       downed.teleport({
         x: loc.x - view.x * 0.8,
         y: loc.y + 0.2,
