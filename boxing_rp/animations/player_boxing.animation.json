@@ -17,6 +17,14 @@
         "leftArm": {
           "rotation": [-85, 25, -20],
           "position": [0, 0, 1]
+        },
+        "rightLeg": {
+          "rotation": [-15, 10, 0],
+          "position": [0, -1, 0]
+        },
+        "leftLeg": {
+          "rotation": [-15, -10, 0],
+          "position": [0, -1, 0]
         }
       }
     },
