@@ -1,7 +1,7 @@
 import { world, system, EntityComponentTypes } from "@minecraft/server";
 
 // ==========================================
-// CONFIGURATION & GLOBAL STATE
+// CONFIGURATION & GLOBAL STATE (MC BEDROCK 1.26.44+)
 // ==========================================
 const STAMINA_MAX = 100;
 const STAMINA_REGEN = 5;
@@ -72,28 +72,41 @@ function getNearestOpponent(player, radius = 6) {
   let closest = null;
   let minDistanceSq = radius * radius;
 
-  for (const p of world.getAllPlayers()) {
-    if (p.id === player.id) continue;
-    const loc = p.location;
-    const dx = loc.x - playerLoc.x;
-    const dy = loc.y - playerLoc.y;
-    const dz = loc.z - playerLoc.z;
-    const distSq = dx * dx + dy * dy + dz * dz;
+  try {
+    for (const other of player.dimension.getEntities()) {
+      if (other.id === player.id) continue;
+      const loc = other.location;
+      const dx = loc.x - playerLoc.x;
+      const dy = loc.y - playerLoc.y;
+      const dz = loc.z - playerLoc.z;
+      const distSq = dx * dx + dy * dy + dz * dz;
 
-    if (distSq <= minDistanceSq) {
-      minDistanceSq = distSq;
-      closest = p;
+      if (distSq <= minDistanceSq) {
+        minDistanceSq = distSq;
+        closest = other;
+      }
     }
-  }
+  } catch (e) {}
   return closest;
 }
 
 // ==========================================
-// 1. OVER-THE-SHOULDER CAMERA SYSTEM
+// 1. PLAYER MOVEMENT & CAMERA SYSTEM (1.26+)
 // ==========================================
+// Set tactical walking speed dynamically via valid Bedrock attribute generic.movement_speed
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
-    const isCam = cameraActive.get(player.id);
+    if (!player.hasTag("boxing_speed_126_ok")) {
+      player.addTag("boxing_speed_126_ok");
+      player.runCommandAsync(`attribute @s generic.movement_speed base set 0.07`);
+    }
+  }
+}, 20);
+
+// Over-The-Shoulder Camera Control (Bedrock 1.26.44+ Compatible)
+system.runInterval(() => {
+  for (const player of world.getAllPlayers()) {
+    const isCam = cameraActive.get(player.id) ?? true;
     if (isCam && !isStunned(player)) {
       try {
         const loc = player.location;
@@ -129,7 +142,7 @@ system.runInterval(() => {
   }
 }, 2);
 
-// Efficient Position Lock for Cutscenes & Stun States
+// Position Lock for Cutscenes & Stun States
 system.runInterval(() => {
   const now = Date.now();
   for (const [entityId, lockData] of lockedLocations.entries()) {
@@ -137,15 +150,18 @@ system.runInterval(() => {
       lockedLocations.delete(entityId);
       continue;
     }
-    for (const player of world.getAllPlayers()) {
-      if (player.id === entityId) {
-        const cur = player.location;
-        const distSq = (cur.x - lockData.x) ** 2 + (cur.y - lockData.y) ** 2 + (cur.z - lockData.z) ** 2;
-        if (distSq > 0.15) {
-          player.teleport({ x: lockData.x, y: lockData.y, z: lockData.z }, { dimension: player.dimension });
+    const dim = lockData.dimension || world.getDimension("overworld");
+    try {
+      for (const ent of dim.getEntities()) {
+        if (ent.id === entityId) {
+          const cur = ent.location;
+          const distSq = (cur.x - lockData.x) ** 2 + (cur.y - lockData.y) ** 2 + (cur.z - lockData.z) ** 2;
+          if (distSq > 0.15) {
+            ent.teleport({ x: lockData.x, y: lockData.y, z: lockData.z }, { dimension: ent.dimension });
+          }
         }
       }
-    }
+    } catch (e) {}
   }
 }, 2);
 
@@ -157,16 +173,8 @@ world.afterEvents.itemUse.subscribe((event) => {
   const item = event.itemStack;
   if (!player || !item) return;
 
-  // Toggle Over-The-Shoulder Camera View
+  // Boxing Gloves: Perform punch attack
   if (item.typeId === "boxing:gloves") {
-    const current = cameraActive.get(player.id) ?? false;
-    cameraActive.set(player.id, !current);
-    if (!current) {
-      player.sendMessage("§a[Boxing Mod] 🎥 เปิดใช้งานมุมกล้อง Over-The-Shoulder");
-    } else {
-      player.camera.clear();
-      player.sendMessage("§c[Boxing Mod] 🎥 ปิดใช้งานมุมกล้อง (กลับสู่มุมมองปกติ)");
-    }
     performPunch(player);
   }
 
@@ -193,12 +201,12 @@ function triggerDashSlowMo(player) {
     lockEntityPosition(opponent, durationMs);
   }
 
-  player.runCommandAsync(`playanimation @s dash_slowmo default 1`);
+  player.runCommandAsync(`playanimation @s animation.player.dash_slowmo default 1`);
   player.runCommandAsync(`playsound game.player.attack.nodamage @a ~ ~ ~ 0.8 0.8`);
   player.onScreenDisplay.setActionBar("§b⚡ CINEMATIC SLOW-MO: DASH!");
 
   if (opponent && opponent.typeId === "minecraft:player") {
-    opponent.runCommandAsync(`playanimation @s dash_slowmo default 1`);
+    opponent.runCommandAsync(`playanimation @s animation.player.dash_slowmo default 1`);
     opponent.onScreenDisplay.setActionBar("§e⚡ OPPONENT DASH SLOW-MO!");
   }
 
@@ -217,12 +225,12 @@ function triggerCounterSlowMo(player) {
     lockEntityPosition(opponent, durationMs);
   }
 
-  player.runCommandAsync(`playanimation @s counter_slowmo default 1`);
+  player.runCommandAsync(`playanimation @s animation.player.counter_slowmo default 1`);
   player.runCommandAsync(`playsound game.player.attack.strong @a ~ ~ ~ 1.0 0.6`);
   player.onScreenDisplay.setActionBar("§c💥 CINEMATIC SLOW-MO: COUNTER PUNCH!");
 
   if (opponent && opponent.typeId === "minecraft:player") {
-    opponent.runCommandAsync(`playanimation @s punch_right default 1`);
+    opponent.runCommandAsync(`playanimation @s animation.player.punch_right default 1`);
     opponent.onScreenDisplay.setActionBar("§c⚠️ คุณกำลังโดนหมัดสวน Counter Slow-Mo!");
   }
 
@@ -247,14 +255,14 @@ function performPunch(player) {
 
   const now = Date.now();
   const lastPunch = lastPunchTime.get(player.id) || 0;
-  if (now - lastPunch < 200) return; // Anti-spam cooldown
+  if (now - lastPunch < 200) return;
   lastPunchTime.set(player.id, now);
 
   const isSneaking = player.isSneaking;
 
   if (isSneaking) {
     // M2 Heavy Punch (Sneak + Punch)
-    player.runCommandAsync(`playanimation @s heavy_punch default 1`);
+    player.runCommandAsync(`playanimation @s animation.player.heavy_punch default 1`);
     player.runCommandAsync(`playsound game.player.attack.strong @a ~ ~ ~ 1.2 0.7`);
     player.onScreenDisplay.setActionBar("§c💥 M2 HEAVY PUNCH (หมัดหนักทะลุการ์ด!)");
 
@@ -267,7 +275,7 @@ function performPunch(player) {
     const nextArm = lastArm === "left" ? "right" : "left";
     playerPunchArm.set(player.id, nextArm);
 
-    const anim = nextArm === "left" ? "punch_left" : "punch_right";
+    const anim = nextArm === "left" ? "animation.player.punch_left" : "animation.player.punch_right";
     player.runCommandAsync(`playanimation @s ${anim} default 1`);
     player.runCommandAsync(`playsound game.player.attack.nodamage @a ~ ~ ~ 0.9 1.1`);
 
@@ -347,7 +355,7 @@ function triggerGuardBreak(player) {
 
   lockEntityPosition(player, stunDurationMs);
 
-  player.runCommandAsync(`playanimation @s stunned default 1`);
+  player.runCommandAsync(`playanimation @s animation.player.stunned default 1`);
   player.runCommandAsync(`playsound random.hurt @a ~ ~ ~ 1.0 0.5`);
   player.onScreenDisplay.setActionBar("§c💫 GUARD BREAK! (ติดสถานะ Stun มึนชั่วคราว)");
   player.sendMessage("§c💫 [Guard Break] การ์ดของคุณแตก! ติดสถานะ Stun ยืนมึน 3 วินาที");
@@ -357,7 +365,7 @@ function triggerGuardBreak(player) {
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
     if (isStunned(player)) {
-      player.runCommandAsync(`playanimation @s stunned default 1`);
+      player.runCommandAsync(`playanimation @s animation.player.stunned default 1`);
       player.onScreenDisplay.setActionBar("§c💫 GUARD BREAK! ติดสถานะ Stun มึนชั่วคราว");
       continue;
     }
