@@ -72,21 +72,19 @@ function getNearestOpponent(player, radius = 6) {
   let closest = null;
   let minDistanceSq = radius * radius;
 
-  try {
-    for (const other of player.dimension.getEntities()) {
-      if (other.id === player.id) continue;
-      const loc = other.location;
-      const dx = loc.x - playerLoc.x;
-      const dy = loc.y - playerLoc.y;
-      const dz = loc.z - playerLoc.z;
-      const distSq = dx * dx + dy * dy + dz * dz;
+  for (const p of world.getAllPlayers()) {
+    if (p.id === player.id) continue;
+    const loc = p.location;
+    const dx = loc.x - playerLoc.x;
+    const dy = loc.y - playerLoc.y;
+    const dz = loc.z - playerLoc.z;
+    const distSq = dx * dx + dy * dy + dz * dz;
 
-      if (distSq <= minDistanceSq) {
-        minDistanceSq = distSq;
-        closest = other;
-      }
+    if (distSq <= minDistanceSq) {
+      minDistanceSq = distSq;
+      closest = p;
     }
-  } catch (e) {}
+  }
   return closest;
 }
 
@@ -95,7 +93,7 @@ function getNearestOpponent(player, radius = 6) {
 // ==========================================
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
-    const isCam = cameraActive.get(player.id) ?? true;
+    const isCam = cameraActive.get(player.id);
     if (isCam && !isStunned(player)) {
       try {
         const loc = player.location;
@@ -115,16 +113,23 @@ system.runInterval(() => {
         const targetY = loc.y + 1.5;
         const targetZ = loc.z + forwardZ * 3.0;
 
-        player.camera.setCamera("boxing:over_shoulder", {
-          location: { x: camX, y: camY, z: camZ },
-          facingLocation: { x: targetX, y: targetY, z: targetZ }
-        });
+        try {
+          player.camera.setCamera("boxing:over_shoulder", {
+            location: { x: camX, y: camY, z: camZ },
+            facingLocation: { x: targetX, y: targetY, z: targetZ }
+          });
+        } catch (e) {
+          player.camera.setCamera("minecraft:free", {
+            location: { x: camX, y: camY, z: camZ },
+            facingLocation: { x: targetX, y: targetY, z: targetZ }
+          });
+        }
       } catch (e) {}
     }
   }
-}, 4);
+}, 2);
 
-// Position Lock for Cutscenes & Stun States across all entities and dimensions
+// Efficient Position Lock for Cutscenes & Stun States
 system.runInterval(() => {
   const now = Date.now();
   for (const [entityId, lockData] of lockedLocations.entries()) {
@@ -132,18 +137,15 @@ system.runInterval(() => {
       lockedLocations.delete(entityId);
       continue;
     }
-    const dim = lockData.dimension || world.getDimension("overworld");
-    try {
-      for (const ent of dim.getEntities()) {
-        if (ent.id === entityId) {
-          const cur = ent.location;
-          const distSq = (cur.x - lockData.x) ** 2 + (cur.y - lockData.y) ** 2 + (cur.z - lockData.z) ** 2;
-          if (distSq > 0.1) {
-            ent.teleport({ x: lockData.x, y: lockData.y, z: lockData.z }, { dimension: ent.dimension });
-          }
+    for (const player of world.getAllPlayers()) {
+      if (player.id === entityId) {
+        const cur = player.location;
+        const distSq = (cur.x - lockData.x) ** 2 + (cur.y - lockData.y) ** 2 + (cur.z - lockData.z) ** 2;
+        if (distSq > 0.15) {
+          player.teleport({ x: lockData.x, y: lockData.y, z: lockData.z }, { dimension: player.dimension });
         }
       }
-    } catch (e) {}
+    }
   }
 }, 2);
 
@@ -157,7 +159,7 @@ world.afterEvents.itemUse.subscribe((event) => {
 
   // Toggle Over-The-Shoulder Camera View
   if (item.typeId === "boxing:gloves") {
-    const current = cameraActive.get(player.id) ?? true;
+    const current = cameraActive.get(player.id) ?? false;
     cameraActive.set(player.id, !current);
     if (!current) {
       player.sendMessage("§a[Boxing Mod] 🎥 เปิดใช้งานมุมกล้อง Over-The-Shoulder");
@@ -165,6 +167,7 @@ world.afterEvents.itemUse.subscribe((event) => {
       player.camera.clear();
       player.sendMessage("§c[Boxing Mod] 🎥 ปิดใช้งานมุมกล้อง (กลับสู่มุมมองปกติ)");
     }
+    performPunch(player);
   }
 
   // Skill 1: Dash Slow-Mo
@@ -238,13 +241,13 @@ function triggerCounterSlowMo(player) {
 // 3. COMBAT MECHANICS (M1 LIGHT PUNCH / M2 HEAVY PUNCH / GUARD BREAK)
 // ==========================================
 
-// Trigger punch animation & stamina on player attack/swing
+// Trigger punch animation & stamina on player attack
 function performPunch(player) {
   if (!player || isStunned(player)) return;
 
   const now = Date.now();
   const lastPunch = lastPunchTime.get(player.id) || 0;
-  if (now - lastPunch < 250) return; // Cooldown limit
+  if (now - lastPunch < 200) return; // Anti-spam cooldown
   lastPunchTime.set(player.id, now);
 
   const isSneaking = player.isSneaking;

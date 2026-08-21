@@ -1,0 +1,7 @@
+{
+  "format_version": "1.19.50",
+  "minecraft:camera_preset": {
+    "identifier": "boxing:over_shoulder",
+    "inherit_from": "minecraft:free"
+  }
+}
