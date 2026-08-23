@@ -1,0 +1,21 @@
+{
+  "format_version": "1.20.80",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "minecraft:player",
+      "is_spawnable": false,
+      "is_summonable": false
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "player",
+          "mob"
+        ]
+      },
+      "minecraft:movement": {
+        "value": 0.07
+      }
+    }
+  }
+}
