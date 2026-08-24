@@ -5,18 +5,25 @@
       "loop": true,
       "bones": {
         "body": {
-          "rotation": [10, 0, 0]
+          "rotation": [12, 0, 0],
+          "position": [0, -1.5, 0]
         },
         "head": {
-          "rotation": [-10, 0, 0]
+          "rotation": [-8, 0, 0]
         },
         "rightArm": {
-          "rotation": [-80, -25, 20],
+          "rotation": [-85, -30, 25],
           "position": [0, 0, 1]
         },
         "leftArm": {
-          "rotation": [-85, 25, -20],
+          "rotation": [-90, 30, -25],
           "position": [0, 0, 1]
+        },
+        "rightLeg": {
+          "rotation": [-15, 10, 0]
+        },
+        "leftLeg": {
+          "rotation": [15, -10, 0]
         }
       }
     },
@@ -25,16 +32,16 @@
       "bones": {
         "leftArm": {
           "keyframes": {
-            "0.0": { "rotation": [-85, 25, -20], "position": [0, 0, 1] },
+            "0.0": { "rotation": [-90, 30, -25], "position": [0, 0, 1] },
             "0.12": { "rotation": [-100, 5, -5], "position": [0, 0, -4] },
-            "0.35": { "rotation": [-85, 25, -20], "position": [0, 0, 1] }
+            "0.35": { "rotation": [-90, 30, -25], "position": [0, 0, 1] }
           }
         },
         "body": {
           "keyframes": {
-            "0.0": { "rotation": [10, 0, 0] },
+            "0.0": { "rotation": [12, 0, 0] },
             "0.12": { "rotation": [12, -15, 0] },
-            "0.35": { "rotation": [10, 0, 0] }
+            "0.35": { "rotation": [12, 0, 0] }
           }
         }
       }
@@ -44,16 +51,16 @@
       "bones": {
         "rightArm": {
           "keyframes": {
-            "0.0": { "rotation": [-80, -25, 20], "position": [0, 0, 1] },
+            "0.0": { "rotation": [-85, -30, 25], "position": [0, 0, 1] },
             "0.12": { "rotation": [-100, -5, 5], "position": [0, 0, -4] },
-            "0.35": { "rotation": [-80, -25, 20], "position": [0, 0, 1] }
+            "0.35": { "rotation": [-85, -30, 25], "position": [0, 0, 1] }
           }
         },
         "body": {
           "keyframes": {
-            "0.0": { "rotation": [10, 0, 0] },
+            "0.0": { "rotation": [12, 0, 0] },
             "0.12": { "rotation": [12, 15, 0] },
-            "0.35": { "rotation": [10, 0, 0] }
+            "0.35": { "rotation": [12, 0, 0] }
           }
         }
       }
@@ -63,18 +70,18 @@
       "bones": {
         "rightArm": {
           "keyframes": {
-            "0.0": { "rotation": [-80, -25, 20], "position": [0, 0, 1] },
+            "0.0": { "rotation": [-85, -30, 25], "position": [0, 0, 1] },
             "0.3": { "rotation": [-40, -45, 30], "position": [1, 0, 3] },
             "0.5": { "rotation": [-110, 10, -10], "position": [0, 0, -6] },
-            "0.8": { "rotation": [-80, -25, 20], "position": [0, 0, 1] }
+            "0.8": { "rotation": [-85, -30, 25], "position": [0, 0, 1] }
           }
         },
         "body": {
           "keyframes": {
-            "0.0": { "rotation": [10, 0, 0] },
+            "0.0": { "rotation": [12, 0, 0] },
             "0.3": { "rotation": [5, 30, 0] },
             "0.5": { "rotation": [20, -25, 0] },
-            "0.8": { "rotation": [10, 0, 0] }
+            "0.8": { "rotation": [12, 0, 0] }
           }
         }
       }
