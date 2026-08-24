@@ -91,19 +91,8 @@ function getNearestOpponent(player, radius = 6) {
 }
 
 // ==========================================
-// 1. PLAYER MOVEMENT & CAMERA SYSTEM (1.26+)
+// 1. CAMERA SYSTEM (ROBLOX BOXING OVER-THE-SHOULDER / SIDE VIEW)
 // ==========================================
-// Set tactical walking speed dynamically via valid Bedrock attribute generic.movement_speed
-system.runInterval(() => {
-  for (const player of world.getAllPlayers()) {
-    if (!player.hasTag("boxing_speed_126_ok")) {
-      player.addTag("boxing_speed_126_ok");
-      player.runCommandAsync(`attribute @s generic.movement_speed base set 0.07`);
-    }
-  }
-}, 20);
-
-// Over-The-Shoulder Camera Control (Bedrock 1.26.44+ Compatible)
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
     const isCam = cameraActive.get(player.id) ?? true;
@@ -113,15 +102,18 @@ system.runInterval(() => {
         const rot = player.getRotation();
         const yawRad = (rot.y * Math.PI) / 180;
 
+        // Over-the-shoulder / Side view offset calculations
         const forwardX = -Math.sin(yawRad);
         const forwardZ = Math.cos(yawRad);
         const rightX = Math.cos(yawRad);
         const rightZ = Math.sin(yawRad);
 
+        // Position camera behind and to the side (over-the-shoulder)
         const camX = loc.x - forwardX * 2.2 + rightX * 0.7;
         const camY = loc.y + 1.8;
         const camZ = loc.z - forwardZ * 2.2 + rightZ * 0.7;
 
+        // Focus target slightly in front of player
         const targetX = loc.x + forwardX * 3.0;
         const targetY = loc.y + 1.5;
         const targetZ = loc.z + forwardZ * 3.0;
@@ -166,7 +158,7 @@ system.runInterval(() => {
 }, 2);
 
 // ==========================================
-// 2. ITEM USE & SLOW-MO SKILLS
+// 2. ITEM USE & CINEMATIC SLOW-MO SKILLS
 // ==========================================
 world.afterEvents.itemUse.subscribe((event) => {
   const player = event.source;
@@ -189,7 +181,7 @@ world.afterEvents.itemUse.subscribe((event) => {
   }
 });
 
-// Synced Cinematic Slow-Mo: Dash
+// Synced Cinematic Slow-Mo: Dash Skill
 function triggerDashSlowMo(player) {
   if (isStunned(player)) return;
 
@@ -213,7 +205,7 @@ function triggerDashSlowMo(player) {
   world.sendMessage(`§b[Cinematic] §e${player.nameTag || "นักมวย"} พุ่งหลบแบบสโลว์โมชัน!`);
 }
 
-// Synced Cinematic Slow-Mo: Counter
+// Synced Cinematic Slow-Mo: Counter Skill
 function triggerCounterSlowMo(player) {
   if (isStunned(player)) return;
 
@@ -249,7 +241,7 @@ function triggerCounterSlowMo(player) {
 // 3. COMBAT MECHANICS (M1 LIGHT PUNCH / M2 HEAVY PUNCH / GUARD BREAK)
 // ==========================================
 
-// Trigger punch animation & stamina on player attack
+// Perform punch attack (M1 Light / M2 Heavy)
 function performPunch(player) {
   if (!player || isStunned(player)) return;
 
@@ -261,7 +253,7 @@ function performPunch(player) {
   const isSneaking = player.isSneaking;
 
   if (isSneaking) {
-    // M2 Heavy Punch (Sneak + Punch)
+    // M2 Heavy Punch (Sneak + Attack) - Pierces Guard
     player.runCommandAsync(`playanimation @s animation.player.heavy_punch default 1`);
     player.runCommandAsync(`playsound game.player.attack.strong @a ~ ~ ~ 1.2 0.7`);
     player.onScreenDisplay.setActionBar("§c💥 M2 HEAVY PUNCH (หมัดหนักทะลุการ์ด!)");
@@ -270,7 +262,7 @@ function performPunch(player) {
     stamina = Math.max(0, stamina - STAMINA_HEAVY_COST);
     playerStamina.set(player.id, stamina);
   } else {
-    // M1 Light Punch (Alternating Left / Right Punch)
+    // M1 Light Punch (Alternating Left & Right Punch)
     const lastArm = playerPunchArm.get(player.id) || "right";
     const nextArm = lastArm === "left" ? "right" : "left";
     playerPunchArm.set(player.id, nextArm);
@@ -285,14 +277,14 @@ function performPunch(player) {
   }
 }
 
-// Trigger punch animation on block interact / attack swing
+// Trigger punch on block interact / attack swing
 world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
   if (event.player) {
     performPunch(event.player);
   }
 });
 
-// Process Combat Hits & Guard Break
+// Process Combat Hits, M2 Guard Piercing, and Guard Break
 world.afterEvents.entityHurt.subscribe((event) => {
   const victim = event.hurtEntity;
   const attacker = event.damageSource.damagingEntity;
@@ -307,7 +299,7 @@ world.afterEvents.entityHurt.subscribe((event) => {
   if (attacker && attacker.typeId === "minecraft:player" && !isStunned(attacker)) {
     performPunch(attacker);
 
-    // M2 Heavy Punch pierces guard
+    // M2 Heavy Punch pierces guard and breaks guard
     if (attacker.isSneaking && victim.typeId === "minecraft:player") {
       const isVictimGuarding = victim.isSneaking || playerGuardTime.has(victim.id);
       if (isVictimGuarding) {
@@ -317,7 +309,7 @@ world.afterEvents.entityHurt.subscribe((event) => {
     }
   }
 
-  // Victim Guard Calculation
+  // Victim Guard Calculation & Guard Break
   if (victim.typeId === "minecraft:player" && !isStunned(victim)) {
     const isGuarding = victim.isSneaking || playerGuardTime.has(victim.id);
     const isAttackerSneaking = attacker && attacker.isSneaking;
@@ -347,7 +339,7 @@ world.afterEvents.entityHurt.subscribe((event) => {
   victim.runCommandAsync(`playsound random.hurt @a ~ ~ ~ 0.8 1.0`);
 });
 
-// Trigger Guard Break Stun
+// Trigger Guard Break Stun State
 function triggerGuardBreak(player) {
   const stunDurationMs = 3000;
   playerStunState.set(player.id, Date.now() + stunDurationMs);
@@ -357,7 +349,7 @@ function triggerGuardBreak(player) {
 
   player.runCommandAsync(`playanimation @s animation.player.stunned default 1`);
   player.runCommandAsync(`playsound random.hurt @a ~ ~ ~ 1.0 0.5`);
-  player.onScreenDisplay.setActionBar("§c💫 GUARD BREAK! (ติดสถานะ Stun มึนชั่วคราว)");
+  player.onScreenDisplay.setActionBar("§c💫 GUARD BREAK! (ติดสถานะ Stun ยืนมึนชั่วคราว)");
   player.sendMessage("§c💫 [Guard Break] การ์ดของคุณแตก! ติดสถานะ Stun ยืนมึน 3 วินาที");
 }
 
@@ -384,7 +376,7 @@ system.runInterval(() => {
   }
 }, 5);
 
-// Stamina Regeneration & Actionbar Display
+// Stamina Regeneration & Display Bar
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
     let stamina = playerStamina.get(player.id) ?? STAMINA_MAX;
