@@ -1,0 +1,29 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "minecraft:player",
+      "materials": {
+        "default": "entity_alphatest"
+      },
+      "textures": {
+        "default": "textures/entity/alex"
+      },
+      "geometry": {
+        "default": "geometry.humanoid.custom"
+      },
+      "scripts": {
+        "animate": [
+          "boxing_controller"
+        ]
+      },
+      "animations": {
+        "boxing_stance": "animation.player.boxing_stance",
+        "boxing_controller": "controller.animation.player.boxing"
+      },
+      "render_controllers": [
+        "controller.render.default"
+      ]
+    }
+  }
+}
