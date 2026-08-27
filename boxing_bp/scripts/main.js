@@ -93,17 +93,7 @@ function getNearestOpponent(player, radius = 6) {
 // ==========================================
 // 1. PLAYER MOVEMENT & CAMERA SYSTEM (1.26+)
 // ==========================================
-// Set tactical walking speed dynamically via valid Bedrock attribute generic.movement_speed
-system.runInterval(() => {
-  for (const player of world.getAllPlayers()) {
-    if (!player.hasTag("boxing_speed_126_ok")) {
-      player.addTag("boxing_speed_126_ok");
-      player.runCommandAsync(`attribute @s generic.movement_speed base set 0.07`);
-    }
-  }
-}, 20);
-
-// Over-The-Shoulder Camera Control (Bedrock 1.26.44+ Compatible)
+// Over-The-Shoulder Camera Control (Bedrock 1.26.44+ Roblox Boxing Style)
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
     const isCam = cameraActive.get(player.id) ?? true;
@@ -118,6 +108,7 @@ system.runInterval(() => {
         const rightX = Math.cos(yawRad);
         const rightZ = Math.sin(yawRad);
 
+        // Over-the-shoulder / Side view offset
         const camX = loc.x - forwardX * 2.2 + rightX * 0.7;
         const camY = loc.y + 1.8;
         const camZ = loc.z - forwardZ * 2.2 + rightZ * 0.7;
@@ -261,7 +252,7 @@ function performPunch(player) {
   const isSneaking = player.isSneaking;
 
   if (isSneaking) {
-    // M2 Heavy Punch (Sneak + Punch)
+    // M2 Heavy Punch (Sneak + Attack)
     player.runCommandAsync(`playanimation @s animation.player.heavy_punch default 1`);
     player.runCommandAsync(`playsound game.player.attack.strong @a ~ ~ ~ 1.2 0.7`);
     player.onScreenDisplay.setActionBar("§c💥 M2 HEAVY PUNCH (หมัดหนักทะลุการ์ด!)");
