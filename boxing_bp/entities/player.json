@@ -1,0 +1,22 @@
+{
+  "format_version": "1.20.80",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "minecraft:player",
+      "is_spawnable": false,
+      "is_summonable": false
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": ["player"]
+      },
+      "minecraft:movement": {
+        "value": 0.07
+      },
+      "minecraft:health": {
+        "value": 20,
+        "max": 20
+      }
+    }
+  }
+}
