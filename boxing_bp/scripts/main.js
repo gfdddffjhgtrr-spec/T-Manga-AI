@@ -1,7 +1,7 @@
 import { world, system, EntityComponentTypes } from "@minecraft/server";
 
 // ==========================================
-// CONFIGURATION & GLOBAL STATE (MC BEDROCK 1.26.44+)
+// CONFIGURATION & GLOBAL STATE
 // ==========================================
 const STAMINA_MAX = 100;
 const STAMINA_REGEN = 5;
@@ -53,7 +53,7 @@ function isStunned(player) {
   return true;
 }
 
-// Lock entity location during cinematic / stun
+// Lock entity location during cinematic slow-mo / stun state
 function lockEntityPosition(entity, durationMs) {
   if (!entity) return;
   const loc = entity.location;
@@ -91,19 +91,19 @@ function getNearestOpponent(player, radius = 6) {
 }
 
 // ==========================================
-// 1. PLAYER MOVEMENT & CAMERA SYSTEM (1.26+)
+// 1. PLAYER MOVEMENT & CAMERA SYSTEM (ROBLOX BOXING OVER-THE-SHOULDER)
 // ==========================================
-// Set tactical walking speed dynamically via valid Bedrock attribute generic.movement_speed
+// Set base movement speed dynamically as backup for runtime player entity
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
-    if (!player.hasTag("boxing_speed_126_ok")) {
-      player.addTag("boxing_speed_126_ok");
+    if (!player.hasTag("boxing_speed_set")) {
+      player.addTag("boxing_speed_set");
       player.runCommandAsync(`attribute @s generic.movement_speed base set 0.07`);
     }
   }
 }, 20);
 
-// Over-The-Shoulder Camera Control (Bedrock 1.26.44+ Compatible)
+// Over-The-Shoulder / Side View Camera Control
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
     const isCam = cameraActive.get(player.id) ?? true;
@@ -118,6 +118,7 @@ system.runInterval(() => {
         const rightX = Math.cos(yawRad);
         const rightZ = Math.sin(yawRad);
 
+        // Over-the-shoulder offset: 2.2 blocks behind, 0.7 blocks to the right side, 1.8 blocks high
         const camX = loc.x - forwardX * 2.2 + rightX * 0.7;
         const camY = loc.y + 1.8;
         const camZ = loc.z - forwardZ * 2.2 + rightZ * 0.7;
@@ -142,7 +143,7 @@ system.runInterval(() => {
   }
 }, 2);
 
-// Position Lock for Cutscenes & Stun States
+// Position Lock Enforcer for Cutscenes & Stun States
 system.runInterval(() => {
   const now = Date.now();
   for (const [entityId, lockData] of lockedLocations.entries()) {
@@ -166,30 +167,27 @@ system.runInterval(() => {
 }, 2);
 
 // ==========================================
-// 2. ITEM USE & SLOW-MO SKILLS
+// 2. ITEM USE & SYNCED CINEMATIC SLOW-MO SKILLS
 // ==========================================
 world.afterEvents.itemUse.subscribe((event) => {
   const player = event.source;
   const item = event.itemStack;
   if (!player || !item) return;
 
-  // Boxing Gloves: Perform punch attack
   if (item.typeId === "boxing:gloves") {
     performPunch(player);
   }
 
-  // Skill 1: Dash Slow-Mo
   if (item.typeId === "boxing:skill_dash") {
     triggerDashSlowMo(player);
   }
 
-  // Skill 2: Counter Slow-Mo
   if (item.typeId === "boxing:skill_counter") {
     triggerCounterSlowMo(player);
   }
 });
 
-// Synced Cinematic Slow-Mo: Dash
+// Synced Cinematic Slow-Mo: Dash Skill
 function triggerDashSlowMo(player) {
   if (isStunned(player)) return;
 
@@ -213,7 +211,7 @@ function triggerDashSlowMo(player) {
   world.sendMessage(`§b[Cinematic] §e${player.nameTag || "นักมวย"} พุ่งหลบแบบสโลว์โมชัน!`);
 }
 
-// Synced Cinematic Slow-Mo: Counter
+// Synced Cinematic Slow-Mo: Counter Skill
 function triggerCounterSlowMo(player) {
   if (isStunned(player)) return;
 
@@ -249,7 +247,6 @@ function triggerCounterSlowMo(player) {
 // 3. COMBAT MECHANICS (M1 LIGHT PUNCH / M2 HEAVY PUNCH / GUARD BREAK)
 // ==========================================
 
-// Trigger punch animation & stamina on player attack
 function performPunch(player) {
   if (!player || isStunned(player)) return;
 
@@ -261,7 +258,7 @@ function performPunch(player) {
   const isSneaking = player.isSneaking;
 
   if (isSneaking) {
-    // M2 Heavy Punch (Sneak + Punch)
+    // M2 Heavy Punch (Sneak + Attack)
     player.runCommandAsync(`playanimation @s animation.player.heavy_punch default 1`);
     player.runCommandAsync(`playsound game.player.attack.strong @a ~ ~ ~ 1.2 0.7`);
     player.onScreenDisplay.setActionBar("§c💥 M2 HEAVY PUNCH (หมัดหนักทะลุการ์ด!)");
@@ -285,14 +282,14 @@ function performPunch(player) {
   }
 }
 
-// Trigger punch animation on block interact / attack swing
+// Trigger punch on block interact / attack swing
 world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
   if (event.player) {
     performPunch(event.player);
   }
 });
 
-// Process Combat Hits & Guard Break
+// Entity Hurt Event (Combat Logic & Guard Break)
 world.afterEvents.entityHurt.subscribe((event) => {
   const victim = event.hurtEntity;
   const attacker = event.damageSource.damagingEntity;
@@ -317,7 +314,7 @@ world.afterEvents.entityHurt.subscribe((event) => {
     }
   }
 
-  // Victim Guard Calculation
+  // Victim Guard Logic
   if (victim.typeId === "minecraft:player" && !isStunned(victim)) {
     const isGuarding = victim.isSneaking || playerGuardTime.has(victim.id);
     const isAttackerSneaking = attacker && attacker.isSneaking;
@@ -335,7 +332,7 @@ world.afterEvents.entityHurt.subscribe((event) => {
         return;
       }
 
-      // Refund 80% damage on normal guard block
+      // Block damage reduction
       const refundedDamage = damage * 0.8;
       setHealth(victim, Math.min(maxHp, currentHp + refundedDamage));
       victim.runCommandAsync(`playsound game.player.attack.nodamage @a ~ ~ ~ 0.8 1.0`);
@@ -347,7 +344,7 @@ world.afterEvents.entityHurt.subscribe((event) => {
   victim.runCommandAsync(`playsound random.hurt @a ~ ~ ~ 0.8 1.0`);
 });
 
-// Trigger Guard Break Stun
+// Guard Break Stun Trigger
 function triggerGuardBreak(player) {
   const stunDurationMs = 3000;
   playerStunState.set(player.id, Date.now() + stunDurationMs);
@@ -361,7 +358,7 @@ function triggerGuardBreak(player) {
   player.sendMessage("§c💫 [Guard Break] การ์ดของคุณแตก! ติดสถานะ Stun ยืนมึน 3 วินาที");
 }
 
-// Tracking Sneak & Guarding State
+// Sneak Stance Tracking & Stun State Loop
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
     if (isStunned(player)) {
@@ -384,7 +381,7 @@ system.runInterval(() => {
   }
 }, 5);
 
-// Stamina Regeneration & Actionbar Display
+// Stamina Regeneration & Actionbar Display Loop
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
     let stamina = playerStamina.get(player.id) ?? STAMINA_MAX;
