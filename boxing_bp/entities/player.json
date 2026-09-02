@@ -1,0 +1,58 @@
+{
+  "format_version": "1.20.80",
+  "minecraft:entity": {
+    "description": {
+      "identifier": "minecraft:player",
+      "is_spawnable": false,
+      "is_summonable": false
+    },
+    "components": {
+      "minecraft:type_family": {
+        "family": [
+          "player",
+          "mob"
+        ]
+      },
+      "minecraft:health": {
+        "value": 20,
+        "max": 20
+      },
+      "minecraft:player.saturation": {
+        "value": 20
+      },
+      "minecraft:player.exhaustion": {
+        "value": 0
+      },
+      "minecraft:player.level": {
+        "value": 0
+      },
+      "minecraft:player.experience": {
+        "value": 0
+      },
+      "minecraft:movement": {
+        "value": 0.07
+      },
+      "minecraft:underwater_movement": {
+        "value": 0.02
+      },
+      "minecraft:attack": {
+        "damage": 1
+      },
+      "minecraft:breathable": {
+        "totalSupply": 15,
+        "suffocateTime": 0,
+        "breathesAir": true,
+        "breathesWater": false
+      },
+      "minecraft:collision_box": {
+        "width": 0.6,
+        "height": 1.8
+      },
+      "minecraft:inventory": {
+        "inventory_size": 36,
+        "container_type": "inventory"
+      },
+      "minecraft:physics": {}
+    }
+  }
+}
