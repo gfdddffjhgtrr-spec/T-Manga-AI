@@ -1,7 +1,7 @@
 import { world, system, EntityComponentTypes } from "@minecraft/server";
 
 // ==========================================
-// CONFIGURATION & GLOBAL STATE (MC BEDROCK 1.26.44+)
+// CONFIGURATION & GLOBAL STATE
 // ==========================================
 const STAMINA_MAX = 100;
 const STAMINA_REGEN = 5;
@@ -53,7 +53,7 @@ function isStunned(player) {
   return true;
 }
 
-// Lock entity location during cinematic / stun
+// Lock entity location during cinematic slow-mo / stun
 function lockEntityPosition(entity, durationMs) {
   if (!entity) return;
   const loc = entity.location;
@@ -91,19 +91,8 @@ function getNearestOpponent(player, radius = 6) {
 }
 
 // ==========================================
-// 1. PLAYER MOVEMENT & CAMERA SYSTEM (1.26+)
+// 1. CAMERA SYSTEM (ROBLOX OVER-THE-SHOULDER)
 // ==========================================
-// Set tactical walking speed dynamically via valid Bedrock attribute generic.movement_speed
-system.runInterval(() => {
-  for (const player of world.getAllPlayers()) {
-    if (!player.hasTag("boxing_speed_126_ok")) {
-      player.addTag("boxing_speed_126_ok");
-      player.runCommandAsync(`attribute @s generic.movement_speed base set 0.07`);
-    }
-  }
-}, 20);
-
-// Over-The-Shoulder Camera Control (Bedrock 1.26.44+ Compatible)
 system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
     const isCam = cameraActive.get(player.id) ?? true;
@@ -113,11 +102,13 @@ system.runInterval(() => {
         const rot = player.getRotation();
         const yawRad = (rot.y * Math.PI) / 180;
 
+        // Over-the-shoulder / Side view offset calculation
         const forwardX = -Math.sin(yawRad);
         const forwardZ = Math.cos(yawRad);
         const rightX = Math.cos(yawRad);
         const rightZ = Math.sin(yawRad);
 
+        // Position camera behind and offset to the right side
         const camX = loc.x - forwardX * 2.2 + rightX * 0.7;
         const camY = loc.y + 1.8;
         const camZ = loc.z - forwardZ * 2.2 + rightZ * 0.7;
@@ -142,7 +133,7 @@ system.runInterval(() => {
   }
 }, 2);
 
-// Position Lock for Cutscenes & Stun States
+// Location Anchor Loop for Synced Cinematic Slow-Mo & Stun States
 system.runInterval(() => {
   const now = Date.now();
   for (const [entityId, lockData] of lockedLocations.entries()) {
@@ -166,7 +157,7 @@ system.runInterval(() => {
 }, 2);
 
 // ==========================================
-// 2. ITEM USE & SLOW-MO SKILLS
+// 2. ITEM USE & SYNCED CINEMATIC SLOW-MO SKILLS
 // ==========================================
 world.afterEvents.itemUse.subscribe((event) => {
   const player = event.source;
@@ -189,21 +180,23 @@ world.afterEvents.itemUse.subscribe((event) => {
   }
 });
 
-// Synced Cinematic Slow-Mo: Dash
+// Synced Cinematic Slow-Mo: Dash Skill
 function triggerDashSlowMo(player) {
   if (isStunned(player)) return;
 
   const opponent = getNearestOpponent(player, 6);
   const durationMs = 3000;
 
+  // Lock positions during slow-mo cutscene
   lockEntityPosition(player, durationMs);
   if (opponent) {
     lockEntityPosition(opponent, durationMs);
   }
 
+  // Play synced keyframe slow-mo animation without status effects
   player.runCommandAsync(`playanimation @s animation.player.dash_slowmo default 1`);
   player.runCommandAsync(`playsound game.player.attack.nodamage @a ~ ~ ~ 0.8 0.8`);
-  player.onScreenDisplay.setActionBar("§b⚡ CINEMATIC SLOW-MO: DASH!");
+  player.onScreenDisplay.setActionBar("§b⚡ SYNCED CINEMATIC SLOW-MO: DASH!");
 
   if (opponent && opponent.typeId === "minecraft:player") {
     opponent.runCommandAsync(`playanimation @s animation.player.dash_slowmo default 1`);
@@ -213,21 +206,23 @@ function triggerDashSlowMo(player) {
   world.sendMessage(`§b[Cinematic] §e${player.nameTag || "นักมวย"} พุ่งหลบแบบสโลว์โมชัน!`);
 }
 
-// Synced Cinematic Slow-Mo: Counter
+// Synced Cinematic Slow-Mo: Counter Skill
 function triggerCounterSlowMo(player) {
   if (isStunned(player)) return;
 
   const opponent = getNearestOpponent(player, 6);
   const durationMs = 3500;
 
+  // Lock positions during slow-mo cutscene
   lockEntityPosition(player, durationMs);
   if (opponent) {
     lockEntityPosition(opponent, durationMs);
   }
 
+  // Play synced keyframe slow-mo animations
   player.runCommandAsync(`playanimation @s animation.player.counter_slowmo default 1`);
   player.runCommandAsync(`playsound game.player.attack.strong @a ~ ~ ~ 1.0 0.6`);
-  player.onScreenDisplay.setActionBar("§c💥 CINEMATIC SLOW-MO: COUNTER PUNCH!");
+  player.onScreenDisplay.setActionBar("§c💥 SYNCED CINEMATIC SLOW-MO: COUNTER PUNCH!");
 
   if (opponent && opponent.typeId === "minecraft:player") {
     opponent.runCommandAsync(`playanimation @s animation.player.punch_right default 1`);
@@ -246,10 +241,10 @@ function triggerCounterSlowMo(player) {
 }
 
 // ==========================================
-// 3. COMBAT MECHANICS (M1 LIGHT PUNCH / M2 HEAVY PUNCH / GUARD BREAK)
+// 3. COMBAT MECHANICS (M1 / M2 / GUARD BREAK)
 // ==========================================
 
-// Trigger punch animation & stamina on player attack
+// Perform Punch (M1 Light Punch vs M2 Heavy Punch)
 function performPunch(player) {
   if (!player || isStunned(player)) return;
 
@@ -261,7 +256,7 @@ function performPunch(player) {
   const isSneaking = player.isSneaking;
 
   if (isSneaking) {
-    // M2 Heavy Punch (Sneak + Punch)
+    // M2 Heavy Punch (Sneak + Attack): Pierces guard
     player.runCommandAsync(`playanimation @s animation.player.heavy_punch default 1`);
     player.runCommandAsync(`playsound game.player.attack.strong @a ~ ~ ~ 1.2 0.7`);
     player.onScreenDisplay.setActionBar("§c💥 M2 HEAVY PUNCH (หมัดหนักทะลุการ์ด!)");
@@ -270,7 +265,7 @@ function performPunch(player) {
     stamina = Math.max(0, stamina - STAMINA_HEAVY_COST);
     playerStamina.set(player.id, stamina);
   } else {
-    // M1 Light Punch (Alternating Left / Right Punch)
+    // M1 Light Punch: Alternating left and right punches
     const lastArm = playerPunchArm.get(player.id) || "right";
     const nextArm = lastArm === "left" ? "right" : "left";
     playerPunchArm.set(player.id, nextArm);
@@ -285,7 +280,7 @@ function performPunch(player) {
   }
 }
 
-// Trigger punch animation on block interact / attack swing
+// Trigger punch animation on block interact
 world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
   if (event.player) {
     performPunch(event.player);
@@ -357,7 +352,7 @@ function triggerGuardBreak(player) {
 
   player.runCommandAsync(`playanimation @s animation.player.stunned default 1`);
   player.runCommandAsync(`playsound random.hurt @a ~ ~ ~ 1.0 0.5`);
-  player.onScreenDisplay.setActionBar("§c💫 GUARD BREAK! (ติดสถานะ Stun มึนชั่วคราว)");
+  player.onScreenDisplay.setActionBar("§c💫 GUARD BREAK! (ติดสถานะ Stun ยืนมึนชั่วคราว)");
   player.sendMessage("§c💫 [Guard Break] การ์ดของคุณแตก! ติดสถานะ Stun ยืนมึน 3 วินาที");
 }
 
@@ -366,7 +361,7 @@ system.runInterval(() => {
   for (const player of world.getAllPlayers()) {
     if (isStunned(player)) {
       player.runCommandAsync(`playanimation @s animation.player.stunned default 1`);
-      player.onScreenDisplay.setActionBar("§c💫 GUARD BREAK! ติดสถานะ Stun มึนชั่วคราว");
+      player.onScreenDisplay.setActionBar("§c💫 GUARD BREAK! ติดสถานะ Stun ยืนมึนชั่วคราว");
       continue;
     }
 
